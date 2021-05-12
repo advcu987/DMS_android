@@ -3,9 +3,16 @@ basic Driver Monitoring System for Android, running on PyTorch
 
 
 ## TODO
-[ ] basic Android **GUI** \
 
-[ ] run basic **face detection** pytorch model (eg. facenet) on Android \
+[x] run Pytorch Android demo on Moto
+
+[ ] basic Android **GUI** \
+- VideoView
+- camera permission in Manifest
+
+[ ] live stream Moto camera in GUI
+
+[ ] run basic **face detection** pytorch model (eg. facenet) on Moto live camera feed \
 
 **face recognition model** (label driver/user): \
 [ ] get labeled samples \
