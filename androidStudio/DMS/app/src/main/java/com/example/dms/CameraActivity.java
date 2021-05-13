@@ -1,7 +1,6 @@
 package com.example.dms;
 
 import androidx.annotation.NonNull;
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
@@ -12,13 +11,10 @@ import android.hardware.Camera;
 import android.os.Bundle;
 import android.widget.FrameLayout;
 import android.widget.Toast;
-//android.widget public class FrameLayout extends android.view.ViewGroup
 
 public class CameraActivity extends Activity {
 
     private static final int CAMERA_PERMISSION_CODE = 101;
-    private Camera mCamera;
-    private CameraPreview mPreview;
 
 
     @Override
@@ -31,18 +27,18 @@ public class CameraActivity extends Activity {
         checkPermission(Manifest.permission.CAMERA, CAMERA_PERMISSION_CODE);
 
         // Create an instance of Camera
-        mCamera = getCameraInstance();
+        Camera mCamera = getCameraInstance();
 
         // Create our Preview view and set it as the content of our activity.
-        mPreview = new CameraPreview(this, mCamera);
+        CameraPreview mPreview = new CameraPreview(this, mCamera);
         FrameLayout preview = findViewById(R.id.camera_preview);
         preview.addView(mPreview);
     }
 
 
     // This function is called when user accept or decline the permission.
-// Request Code is used to check which permission called this function.
-// This request code is provided when user is prompt for permission.
+    // Request Code is used to check which permission called this function.
+    // This request code is provided when user is prompt for permission.
     @Override
     public void onRequestPermissionsResult(int requestCode,
                                            @NonNull String[] permissions,
@@ -89,6 +85,4 @@ public class CameraActivity extends Activity {
         }
         return c; // returns null if camera is unavailable
     }
-
-
 }
