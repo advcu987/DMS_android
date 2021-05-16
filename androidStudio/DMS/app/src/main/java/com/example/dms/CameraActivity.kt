@@ -1,11 +1,22 @@
 package com.example.dms
 // CameraX stuff
+import android.Manifest
+import android.content.pm.PackageManager
+import android.graphics.Camera
+import android.os.Bundle
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.FrameLayout
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 
 class CameraActivity : AppCompatActivity() {
     private var cameraProviderFuture: ListenableFuture<ProcessCameraProvider>? = null
-    @Override
-    fun onCreate(savedInstanceState: Bundle?) {
+
+    override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
@@ -25,6 +36,12 @@ class CameraActivity : AppCompatActivity() {
         val preview: FrameLayout = findViewById(R.id.camera_preview)
         preview.addView(mPreview)
     }
+
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?): View? =
+        inflater.inflate(R.layout.activity_main, container, false)
 
     // This function is called when user accept or decline the permission.
     // Request Code is used to check which permission called this function.
