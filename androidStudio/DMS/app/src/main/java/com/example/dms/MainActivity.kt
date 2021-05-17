@@ -9,52 +9,55 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.Toast
+import androidx.annotation.NonNull
 import androidx.appcompat.app.AppCompatActivity
+import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 
-class CameraActivity : AppCompatActivity() {
-    private var cameraProviderFuture: ListenableFuture<ProcessCameraProvider>? = null
+class MainActivity : AppCompatActivity() {
+    private lateinit var container: FrameLayout
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        container = findViewById(R.id.fragment_container)
 
         // User permission handling
         // Source: https://www.geeksforgeeks.org/android-how-to-request-permissions-in-android-application/
         checkPermission(Manifest.permission.CAMERA, CAMERA_PERMISSION_CODE)
 
         // CameraX: Request a CameraProvider
-        cameraProviderFuture = ProcessCameraProvider.getInstance(this)
+        // TODO: remove this, it's done in CameraActivity; is Broadcast Manager needed?
+        // cameraProviderFuture = ProcessCameraProvider.getInstance(this)
 
 
         // Create an instance of Camera
-        val mCamera: Camera? = cameraInstance
+        // val mCamera: Camera? = cameraInstance
 
         // Create our Preview view and set it as the content of our activity.
-        val mPreview = CameraPreview(this, mCamera)
-        val preview: FrameLayout = findViewById(R.id.camera_preview)
-        preview.addView(mPreview)
+        // val mPreview = CameraPreview(this, mCamera)
+        // val preview: FrameLayout = findViewById(R.id.camera_preview)
+        // preview.addView(mPreview)
     }
 
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?): View? =
-        inflater.inflate(R.layout.activity_main, container, false)
+        inflater.inflate(R.layout.fragment_camera, container, false)
 
     // This function is called when user accept or decline the permission.
     // Request Code is used to check which permission called this function.
     // This request code is provided when user is prompt for permission.
-    @Override
-    fun onRequestPermissionsResult(requestCode: Int,
+    override fun onRequestPermissionsResult(requestCode: Int,
                                    @NonNull permissions: Array<String?>?,
                                    @NonNull grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == CAMERA_PERMISSION_CODE) {
 
             // Checking whether user granted the permission or not.
-            if (grantResults.size > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
 
                 // Showing the toast message
                 Toast.makeText(this, "Camera Permission Granted", Toast.LENGTH_SHORT).show()
@@ -65,9 +68,9 @@ class CameraActivity : AppCompatActivity() {
     }
 
     // Function to check and request permission
-    fun checkPermission(permission: String, requestCode: Int) {
+    private fun checkPermission(permission: String, requestCode: Int) {
         // Checking if permission is not granted
-        if (ContextCompat.checkSelfPermission(this, permission) === PackageManager.PERMISSION_DENIED) {
+        if (ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_DENIED) {
             ActivityCompat.requestPermissions(this, arrayOf(permission), requestCode)
         } else {
             Toast.makeText(this, "Permission already granted", Toast.LENGTH_SHORT).show()
