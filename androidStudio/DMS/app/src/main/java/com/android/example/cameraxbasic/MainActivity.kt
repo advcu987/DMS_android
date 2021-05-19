@@ -16,19 +16,18 @@
 
 package com.android.example.cameraxbasic
 
-import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import android.view.KeyEvent
-import androidx.appcompat.app.AppCompatActivity
-import java.io.File
-import androidx.localbroadcastmanager.content.LocalBroadcastManager
-import android.content.Intent
 import android.widget.FrameLayout
+import androidx.appcompat.app.AppCompatActivity
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.android.example.cameraxbasic.utils.FLAGS_FULLSCREEN
 
 const val KEY_EVENT_ACTION = "key_event_action"
 const val KEY_EVENT_EXTRA = "key_event_extra"
 private const val IMMERSIVE_FLAG_TIMEOUT = 500L
+
 
 /**
  * Main entry point into our app. This app follows the single-activity pattern, and all

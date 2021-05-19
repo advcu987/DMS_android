@@ -13,9 +13,15 @@ basic Driver Monitoring System for Android, running on PyTorch
 
 [x] use CameraX instead of deprecated Camera
 
+[x] objectDetection -> CameraXActivity.java -> setupCameraX() ---> DMS -> CameraFragment.kt -> bindCameraUseCases -> imageAnalyzer
+
+[ ] fix CameraFragment.kt -> analyzeImage return type (ArrayList<Result>)
+
 [ ] run basic **face detection** pytorch model (eg. facenet) on Moto live camera feed \
 
-[ ] objectDetection -> CameraXActivity.java -> setupCameraX() ---> DMS -> CameraFragment.kt -> bindCameraUseCases -> imageAnalyzer
+
+[ ] run basic **yolov5** pytorch model (object detection) on Moto live camera feed \
+
 
 **face recognition model** (label driver/user): \
 [ ] get labeled samples \
