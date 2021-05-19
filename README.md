@@ -11,9 +11,11 @@ basic Driver Monitoring System for Android, running on PyTorch
 
 [X] live stream Moto camera in GUI
 
-[ ] use CameraX instead of deprecated Camera
+[x] use CameraX instead of deprecated Camera
 
 [ ] run basic **face detection** pytorch model (eg. facenet) on Moto live camera feed \
+
+[ ] objectDetection -> CameraXActivity.java -> setupCameraX() ---> DMS -> CameraFragment.kt -> bindCameraUseCases -> imageAnalyzer
 
 **face recognition model** (label driver/user): \
 [ ] get labeled samples \
