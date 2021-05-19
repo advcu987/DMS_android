@@ -17,6 +17,7 @@
 package com.android.example.cameraxbasic.fragments
 
 
+//import androidx.test.internal.runner.junit4.statement.UiThreadStatement.runOnUiThread
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.res.Configuration
@@ -33,6 +34,7 @@ import android.util.Size
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.app.Activity
 import android.widget.ImageButton
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
@@ -44,6 +46,7 @@ import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import androidx.navigation.Navigation
 //import androidx.test.internal.runner.junit4.statement.UiThreadStatement.runOnUiThread
 import com.android.example.cameraxbasic.R
+import com.android.example.cameraxbasic.utils.ResultView
 import org.pytorch.IValue
 import org.pytorch.Module
 import org.pytorch.PyTorchAndroid
@@ -82,11 +85,17 @@ class CameraFragment : Fragment() {
     private lateinit var container: ConstraintLayout
     private lateinit var viewFinder: PreviewView
     private lateinit var broadcastManager: LocalBroadcastManager
+
+    // variables from class ObjectDetectionActivity
     private var mModule: Module? = null
+    private var mResultView: ResultView? = null
+
+    // variables from class AbstractCameraXActivity
+    private var mLastAnalysisResultTime: Long = 0
+
     private var displayId: Int = -1
     private var lensFacing: Int = CameraSelector.LENS_FACING_BACK
     private var preview: Preview? = null
-//    private var imageAnalyzer: ImageAnalysis? = null
     private var camera: Camera? = null
     private var cameraProvider: ProcessCameraProvider? = null
 
@@ -184,6 +193,9 @@ class CameraFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         container = view as ConstraintLayout
         viewFinder = container.findViewById(R.id.view_finder)
+
+        // from ObjectDetectionActivity->getCameraPreviewTextureView()
+        mResultView = container.findViewById(R.id.resultView);
 
         // Initialize our background executor
         cameraExecutor = Executors.newSingleThreadExecutor()
@@ -296,7 +308,7 @@ class CameraFragment : Fragment() {
                 mLastAnalysisResultTime = SystemClock.elapsedRealtime()
                 // Draws rectangle and graphics around detected objects
                 // Must be run on Main Thread (live camera feed)
-                runOnUiThread(
+                activity?.runOnUiThread(
                     Runnable {
                         applyToUiAnalyzeImageResult(result)
                     })
@@ -311,7 +323,7 @@ class CameraFragment : Fragment() {
             // A variable number of use-cases can be passed here -
             // camera provides access to CameraControl & CameraInfo
             camera = cameraProvider.bindToLifecycle(
-                    this, cameraSelector, preview, imageAnalysis)
+                    this, cameraSelector, preview, imageAnalyzer)
 
             // Attach the viewfinder's surface provider to preview use case
             preview?.setSurfaceProvider(viewFinder.surfaceProvider)
@@ -322,7 +334,7 @@ class CameraFragment : Fragment() {
 
     // AdVo: ObjectDetectionActivity.java -> analyzeImage()
     @SuppressLint("UnsafeExperimentalUsageError")
-    private fun analyzeImage(image: ImageProxy, rotationDegrees: Int): ArrayList {
+    private fun analyzeImage(image: ImageProxy, rotationDegrees: Int): ArrayList<Result> {
         if (mModule == null) {
             mModule = PyTorchAndroid.loadModuleFromAsset(context?.assets, "yolov5s.torchscript.pt")
         }
@@ -341,8 +353,8 @@ class CameraFragment : Fragment() {
 
         val imgScaleX: Float = bitmap.width.toFloat() / 640
         val imgScaleY: Float = bitmap.height.toFloat() / 640
-        val ivScaleX = mResultView.getWidth() as Float / bitmap.width
-        val ivScaleY = mResultView.getHeight() as Float / bitmap.height
+        val ivScaleX = mResultView?.width as Float / bitmap.width
+        val ivScaleY = mResultView?.height as Float / bitmap.height
 
         return outputsToNMSPredictions(
             outputs,
@@ -353,6 +365,10 @@ class CameraFragment : Fragment() {
             0f,
             0f
         )
+    }
+
+    private fun applyToUiAnalyzeImageResult(result: ArrayList): Unit{
+
     }
 
     private  fun outputsToNMSPredictions(outputs: FloatArray, imgScaleX: Float, imgScaleY: Float, ivScaleX: Float, ivScaleY: Float, startX: Float, startY: Float) : ArrayList<PredResult> {
@@ -407,7 +423,7 @@ class CameraFragment : Fragment() {
         var done = false
         for (i in 0..boxes.size)
         {
-            if (done == true)
+            if (done)
                 break
             if (active[i])
             {
