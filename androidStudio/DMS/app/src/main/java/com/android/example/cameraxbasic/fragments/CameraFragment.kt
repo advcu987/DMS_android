@@ -18,12 +18,14 @@ package com.android.example.cameraxbasic.fragments
 
 
 //import androidx.test.internal.runner.junit4.statement.UiThreadStatement.runOnUiThread
+//import androidx.test.internal.runner.junit4.statement.UiThreadStatement.runOnUiThread
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.Matrix
 import android.graphics.Rect
+import android.graphics.RectF
 import android.hardware.display.DisplayManager
 import android.media.Image
 import android.os.Bundle
@@ -34,7 +36,6 @@ import android.util.Size
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.app.Activity
 import android.widget.ImageButton
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
@@ -44,7 +45,6 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import androidx.navigation.Navigation
-//import androidx.test.internal.runner.junit4.statement.UiThreadStatement.runOnUiThread
 import com.android.example.cameraxbasic.R
 import com.android.example.cameraxbasic.utils.ResultView
 import org.pytorch.IValue
@@ -67,10 +67,16 @@ import kotlin.math.min
 /** Helper type alias used for analysis use case callbacks */
 typealias LumaListener = (luma: Double) -> Unit
 
-internal class PredResult(var classIndex: Int, var score: Float, rect: Rect) {
-    var rect: Rect
+class PredResult(var cls: Int, var output: Float, var rect1: RectF) {
+    lateinit var score: Any
+    lateinit var rect: RectF
+    var classIndex: Int
+
+
     init {
-        this.rect = rect
+        this.rect = rect1
+        this.classIndex = cls
+        this.score = output
     }
 }
 
@@ -334,30 +340,30 @@ class CameraFragment : Fragment() {
 
     // AdVo: ObjectDetectionActivity.java -> analyzeImage()
     @SuppressLint("UnsafeExperimentalUsageError")
-    private fun analyzeImage(image: ImageProxy, rotationDegrees: Int): ArrayList<Result> {
+    private fun analyzeImage(image: ImageProxy, rotationDegrees: Int): ArrayList<PredResult> {
         if (mModule == null) {
             mModule = PyTorchAndroid.loadModuleFromAsset(context?.assets, "yolov5s.torchscript.pt")
         }
-        var bitmap: Bitmap = imgToBitmap(image.image)
+        var bitmap = imgToBitmap(image.image)
         val matrix = Matrix()
         matrix.postRotate(90f)
         bitmap =
-            Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, true);
-        var resizedBitmap = Bitmap.createScaledBitmap(bitmap, 640, 640, true);
+            bitmap?.let { Bitmap.createBitmap(it, 0, 0, bitmap!!.getWidth(), bitmap!!.getHeight(), matrix, true) };
+        var resizedBitmap = bitmap?.let { Bitmap.createScaledBitmap(it, 640, 640, true) };
         val inputTensor: Tensor =
             TensorImageUtils.bitmapToFloat32Tensor(resizedBitmap, NO_MEAN_RGB, NO_STD_RGB);
 
-        val outputTuple = mModule.forward(*IValue.from(inputTensor).toTuple())
-        val outputTensor = outputTuple.toTensor()
-        val outputs = outputTensor.dataAsFloatArray
+        val outputTuple = mModule?.forward(*IValue.from(inputTensor).toTuple())
+        val outputTensor = outputTuple?.toTensor()
+        val outputs = outputTensor?.dataAsFloatArray
 
-        val imgScaleX: Float = bitmap.width.toFloat() / 640
-        val imgScaleY: Float = bitmap.height.toFloat() / 640
-        val ivScaleX = mResultView?.width as Float / bitmap.width
-        val ivScaleY = mResultView?.height as Float / bitmap.height
+        val imgScaleX: Float = bitmap?.width?.toFloat()!!.div(640)
+        val imgScaleY: Float = bitmap?.height?.toFloat()!!.div(640)
+        val ivScaleX = mResultView?.width as Float / bitmap?.width!!
+        val ivScaleY = mResultView?.height as Float / bitmap?.height!!
 
         return outputsToNMSPredictions(
-            outputs,
+            outputs!!,
             imgScaleX,
             imgScaleY,
             ivScaleX,
@@ -367,8 +373,8 @@ class CameraFragment : Fragment() {
         )
     }
 
-    private fun applyToUiAnalyzeImageResult(result: ArrayList): Unit{
-
+    private fun applyToUiAnalyzeImageResult(result: ArrayList<PredResult>): Unit{
+        mResultView!!.setResults(result)
     }
 
     private  fun outputsToNMSPredictions(outputs: FloatArray, imgScaleX: Float, imgScaleY: Float, ivScaleX: Float, ivScaleY: Float, startX: Float, startY: Float) : ArrayList<PredResult> {
@@ -392,11 +398,11 @@ class CameraFragment : Fragment() {
                         cls = j
                     }
                 }
-                val rect = Rect(
-                    (startX + ivScaleX * left).toInt(),
-                    (startY + top * ivScaleY).toInt(),
-                    (startX + ivScaleX * right).toInt(),
-                    (startY + ivScaleY * bottom).toInt()
+                val rect = RectF(
+                    (startX + ivScaleX * left).toInt().toFloat(),
+                    (startY + top * ivScaleY).toInt().toFloat(),
+                    (startX + ivScaleX * right).toInt().toFloat(),
+                    (startY + ivScaleY * bottom).toInt().toFloat()
                 )
                 val result = PredResult(cls, outputs[i * 85 + 4], rect)
                 results.add(result)
@@ -409,6 +415,10 @@ class CameraFragment : Fragment() {
     private fun nonMaxSuppression(boxes: ArrayList<PredResult>, limit: Int, threshold: Float) : ArrayList<PredResult>
     {
         boxes.sortWith(Comparator { o1, o2 -> o1.score.compareTo(o2.score) })
+
+        Collections.sort(boxes,
+            Comparator<Any?> { o1, o2 -> o1.score.compareTo(o2.score) })
+
 
         val selected: ArrayList<PredResult> = ArrayList()
         val active = BooleanArray(boxes.size)

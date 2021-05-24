@@ -30,7 +30,7 @@ public class ResultView extends View {
 
     private Paint mPaintRectangle;
     private Paint mPaintText;
-    private ArrayList<Result> mResults;
+    private ArrayList<PredResult> mResults;
 
     public ResultView(Context context) {
         super(context);
@@ -48,7 +48,7 @@ public class ResultView extends View {
         super.onDraw(canvas);
 
         if (mResults == null) return;
-        for (Result result : mResults) {
+        for (PredResult result : mResults) {
             mPaintRectangle.setStrokeWidth(5);
             mPaintRectangle.setStyle(Paint.Style.STROKE);
             canvas.drawRect(result.rect, mPaintRectangle);
