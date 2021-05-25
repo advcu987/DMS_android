@@ -32,6 +32,7 @@ import android.os.SystemClock
 import android.util.DisplayMetrics
 import android.util.Half.toFloat
 import android.util.Log
+//import android.util.Log.INFO
 import android.util.Size
 import android.view.LayoutInflater
 import android.view.View
@@ -62,6 +63,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.logging.Level.INFO
 import kotlin.collections.ArrayList
 import kotlin.math.abs
 import kotlin.math.max
@@ -199,6 +201,7 @@ class CameraFragment : Fragment() {
         }
     }
 */
+    @RequiresApi(Build.VERSION_CODES.O)
     @SuppressLint("MissingPermission")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -245,6 +248,7 @@ class CameraFragment : Fragment() {
      * NOTE: The flag is supported starting in Android 8 but there still is a small flash on the
      * screen for devices that run Android 9 or below.
      */
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
 
@@ -256,6 +260,7 @@ class CameraFragment : Fragment() {
     }
 
     /** Initialize CameraX, and prepare to bind the camera use cases  */
+    @RequiresApi(Build.VERSION_CODES.O)
     private fun setUpCamera() {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(requireContext())
         cameraProviderFuture.addListener(Runnable {
@@ -370,9 +375,15 @@ class CameraFragment : Fragment() {
         val inputTensor: Tensor =
             TensorImageUtils.bitmapToFloat32Tensor(resizedBitmap, NO_MEAN_RGB, NO_STD_RGB);
 
-        val outputTuple = mModule?.forward(*IValue.from(inputTensor).toTuple())
-        val outputTensor = outputTuple?.toTensor()
+        val outputTuple = mModule?.forward(IValue.from(inputTensor))?.toTuple()
+        Log.d(TAG, "Model Forward: $outputTuple")
+//        Log.INFO(TAG, "Model Forward: $outputTuple")
+
+        val outputTensor = outputTuple?.get(0)?.toTensor()
+        Log.d(TAG, "Model outputTensor: $outputTensor")
+
         val outputs = outputTensor?.dataAsFloatArray
+        Log.d(TAG, "Model outputs: $outputs")
 
         val imgScaleX: Float = bitmap?.width?.toFloat()!!.div(640)
         val imgScaleY: Float = bitmap?.height?.toFloat()!!.div(640)
@@ -397,6 +408,13 @@ class CameraFragment : Fragment() {
     private  fun outputsToNMSPredictions(outputs: FloatArray, imgScaleX: Float, imgScaleY: Float, ivScaleX: Float, ivScaleY: Float, startX: Float, startY: Float) : ArrayList<PredResult> {
 
         var results = ArrayList<PredResult>()
+
+        val a = outputs[0]
+        val b = outputs[1]
+        Log.d(TAG, "outputsToNMSPredictions outputs: $a $b")
+//        Log.d(TAG, "outputsToNMSPredictions rect: $rect")
+
+
         for (i in 0 until 25200) {
             if (outputs[i * 85 + 4] > 0.30f) {
                 val x = outputs[i * 85]
@@ -421,6 +439,7 @@ class CameraFragment : Fragment() {
                     (startX + ivScaleX * right).toInt().toFloat(),
                     (startY + ivScaleY * bottom).toInt().toFloat()
                 )
+
                 val result = PredResult(cls, outputs[i * 85 + 4], rect)
                 results.add(result)
             }
@@ -445,7 +464,7 @@ class CameraFragment : Fragment() {
                // previous boxes), then repeat this procedure, until no more boxes remain
                // or the limit has been reached.
                var done = false
-               for (i in 0..boxes.size)
+               for (i in 0 until boxes.size)
                {
                    if (done)
                        break
@@ -543,6 +562,7 @@ class CameraFragment : Fragment() {
     }
 
     /** Method used to re-draw the camera UI controls, called every time configuration changes. */
+    @RequiresApi(Build.VERSION_CODES.O)
     private fun updateCameraUi() {
 
         // Remove previous UI if any
