@@ -19,25 +19,28 @@ package com.android.example.cameraxbasic.fragments
 
 //import androidx.test.internal.runner.junit4.statement.UiThreadStatement.runOnUiThread
 //import androidx.test.internal.runner.junit4.statement.UiThreadStatement.runOnUiThread
+
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.res.Configuration
-import android.graphics.Bitmap
-import android.graphics.Matrix
-import android.graphics.Rect
-import android.graphics.RectF
+import android.graphics.*
 import android.hardware.display.DisplayManager
 import android.media.Image
+import android.os.Build
 import android.os.Bundle
 import android.os.SystemClock
 import android.util.DisplayMetrics
+import android.util.Half.toFloat
 import android.util.Log
 import android.util.Size
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageButton
+import android.widget.Toast
+import androidx.annotation.RequiresApi
 import androidx.camera.core.*
+import androidx.camera.core.Camera
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.constraintlayout.widget.ConstraintLayout
@@ -52,6 +55,7 @@ import org.pytorch.Module
 import org.pytorch.PyTorchAndroid
 import org.pytorch.Tensor
 import org.pytorch.torchvision.TensorImageUtils
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.nio.ByteBuffer
 import java.text.SimpleDateFormat
@@ -62,6 +66,7 @@ import kotlin.collections.ArrayList
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.properties.Delegates
 
 
 /** Helper type alias used for analysis use case callbacks */
@@ -70,7 +75,7 @@ typealias LumaListener = (luma: Double) -> Unit
 class PredResult(var cls: Int, var output: Float, var rect1: RectF) {
     lateinit var score: Any
     lateinit var rect: RectF
-    var classIndex: Int
+    var classIndex by Delegates.notNull<Int>()
 
 
     init {
@@ -201,7 +206,7 @@ class CameraFragment : Fragment() {
         viewFinder = container.findViewById(R.id.view_finder)
 
         // from ObjectDetectionActivity->getCameraPreviewTextureView()
-        mResultView = container.findViewById(R.id.resultView);
+        mResultView = container.findViewById(R.id.resultView)
 
         // Initialize our background executor
         cameraExecutor = Executors.newSingleThreadExecutor()
@@ -274,6 +279,7 @@ class CameraFragment : Fragment() {
     }
 
     /** Declare and bind preview, capture and analysis use cases */
+    @RequiresApi(Build.VERSION_CODES.O)
     private fun bindCameraUseCases() {
 
         // Get screen metrics used to setup camera for full screen resolution
@@ -339,10 +345,21 @@ class CameraFragment : Fragment() {
     }
 
     // AdVo: ObjectDetectionActivity.java -> analyzeImage()
-    @SuppressLint("UnsafeExperimentalUsageError")
+    @RequiresApi(Build.VERSION_CODES.O)
+    @SuppressLint("UnsafeExperimentalUsageError", "HalfFloat")
     private fun analyzeImage(image: ImageProxy, rotationDegrees: Int): ArrayList<PredResult> {
         if (mModule == null) {
-            mModule = PyTorchAndroid.loadModuleFromAsset(context?.assets, "yolov5s.torchscript.pt")
+            try {
+                mModule = PyTorchAndroid.loadModuleFromAsset(context?.assets, "yolov5s.torchscript.pt")
+            }
+            catch (e: IllegalArgumentException){
+
+                activity?.runOnUiThread(
+                    Runnable {
+                        Toast.makeText(context, "Failed to load PyTorch Model", Toast.LENGTH_LONG).show()
+                    })
+            }
+
         }
         var bitmap = imgToBitmap(image.image)
         val matrix = Matrix()
@@ -359,8 +376,8 @@ class CameraFragment : Fragment() {
 
         val imgScaleX: Float = bitmap?.width?.toFloat()!!.div(640)
         val imgScaleY: Float = bitmap?.height?.toFloat()!!.div(640)
-        val ivScaleX = mResultView?.width as Float / bitmap?.width!!
-        val ivScaleY = mResultView?.height as Float / bitmap?.height!!
+        val ivScaleX = (mResultView?.width?.div(bitmap?.width!!))!!.toFloat()
+        val ivScaleY = (mResultView?.height?.div(bitmap?.height!!))!!.toFloat()
 
         return outputsToNMSPredictions(
             outputs!!,
@@ -414,61 +431,58 @@ class CameraFragment : Fragment() {
 
     private fun nonMaxSuppression(boxes: ArrayList<PredResult>, limit: Int, threshold: Float) : ArrayList<PredResult>
     {
-        boxes.sortWith(Comparator { o1, o2 -> o1.score.compareTo(o2.score) })
+                // AdVo: Skip the sorting for now
+//              boxes.sortWith(Comparator<PredResult> { o1, o2 -> o1.score.compareTo(o2.score) })
 
-        Collections.sort(boxes,
-            Comparator<Any?> { o1, o2 -> o1.score.compareTo(o2.score) })
+               val selected: ArrayList<PredResult> = ArrayList()
+               val active = BooleanArray(boxes.size)
+               Arrays.fill(active, true)
+               var numActive = active.size
 
+               // The algorithm is simple: Start with the box that has the highest score.
+               // Remove any remaining boxes that overlap it more than the given threshold
+               // amount. If there are any boxes left (i.e. these did not overlap with any
+               // previous boxes), then repeat this procedure, until no more boxes remain
+               // or the limit has been reached.
+               var done = false
+               for (i in 0..boxes.size)
+               {
+                   if (done)
+                       break
+                   if (active[i])
+                   {
+                       val boxA = boxes.get(i)
+                       selected.add(boxA)
+                       if (selected.size >= limit)
+                           break
 
-        val selected: ArrayList<PredResult> = ArrayList()
-        val active = BooleanArray(boxes.size)
-        Arrays.fill(active, true)
-        var numActive = active.size
+                       for (j in i+1..boxes.size)
+                       {
+                           if (active[j])
+                           {
+                               val boxB = boxes.get(j)
+                               if (IOU(boxA.rect, boxB.rect) > threshold)
+                               {
+                                   active[j] = false
+                                   numActive -= 1
+                                   if (numActive <= 0)
+                                   {
+                                       done = true
+                                       break
+                                   }
 
-        // The algorithm is simple: Start with the box that has the highest score.
-        // Remove any remaining boxes that overlap it more than the given threshold
-        // amount. If there are any boxes left (i.e. these did not overlap with any
-        // previous boxes), then repeat this procedure, until no more boxes remain
-        // or the limit has been reached.
-        var done = false
-        for (i in 0..boxes.size)
-        {
-            if (done)
-                break
-            if (active[i])
-            {
-                val boxA = boxes.get(i)
-                selected.add(boxA)
-                if (selected.size >= limit)
-                    break
-
-                for (j in i+1..boxes.size)
-                {
-                    if (active[j])
-                    {
-                        val boxB = boxes.get(j)
-                        if (IOU(boxA.rect, boxB.rect) > threshold)
-                        {
-                            active[j] = false
-                            numActive -= 1
-                            if (numActive <= 0)
-                            {
-                                done = true
-                                break
-                            }
-
-                        }
-                    }
-                }
-            }
-        }
-        return selected
-    }
+                               }
+                           }
+                       }
+                   }
+               }
+               return selected
+           }
 
     /**
      * Computes intersection-over-union overlap between two bounding boxes.
      */
-    fun IOU(a: Rect, b: Rect): Float {
+    fun IOU(a: RectF, b: RectF): Float {
         val areaA = ((a.right - a.left) * (a.bottom - a.top)).toFloat()
         if (areaA <= 0.0) return 0.0f
         val areaB = ((b.right - b.left) * (b.bottom - b.top)).toFloat()
@@ -485,7 +499,28 @@ class CameraFragment : Fragment() {
     private fun imgToBitmap(image: Image?): Bitmap? {
 
         val bitmap: Bitmap? = null
-        return bitmap
+
+        val planes = image!!.planes
+        val yBuffer = planes[0].buffer
+        val uBuffer = planes[1].buffer
+        val vBuffer = planes[2].buffer
+
+        val ySize = yBuffer.remaining()
+        val uSize = uBuffer.remaining()
+        val vSize = vBuffer.remaining()
+
+        val nv21 = ByteArray(ySize + uSize + vSize)
+        yBuffer[nv21, 0, ySize]
+        vBuffer[nv21, ySize, vSize]
+        uBuffer[nv21, ySize + vSize, uSize]
+
+        val yuvImage = YuvImage(nv21, ImageFormat.NV21, image!!.width, image!!.height, null)
+        val out = ByteArrayOutputStream()
+        yuvImage.compressToJpeg(Rect(0, 0, yuvImage.width, yuvImage.height), 75, out)
+
+        val imageBytes: ByteArray = out.toByteArray()
+        return BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
+
     }
 
     /**

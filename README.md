@@ -17,6 +17,15 @@ basic Driver Monitoring System for Android, running on PyTorch
 
 [x] fix CameraFragment.kt -> analyzeImage return type (ArrayList<Result>)
 
+[x] fix CameraFragment.kt -> add extraction of classes (?) -> dummy
+
+[x] fix CameraFragment.kt -> nonMaxSuppression -> Comparator -> dummy
+
+[ ] fix CameraFragment.kt -> analyzeImage -> model inference for yolo model
+
+[ ] modify and load other model than what's provided in the tutorial
+
+
 [ ] run basic **face detection** pytorch model (eg. facenet) on Moto live camera feed \
 
 

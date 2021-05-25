@@ -18,9 +18,6 @@ import com.android.example.cameraxbasic.fragments.PredResult;
 
 import java.util.ArrayList;
 
-import kotlin.Result;
-
-
 public class ResultView extends View {
 
     private final static int TEXT_X = 40;
@@ -28,9 +25,9 @@ public class ResultView extends View {
     private final static int TEXT_WIDTH = 260;
     private final static int TEXT_HEIGHT = 50;
 
-    private Paint mPaintRectangle;
-    private Paint mPaintText;
-    private ArrayList<PredResult> mResults;
+    public Paint mPaintRectangle;
+    public Paint mPaintText;
+    public ArrayList<PredResult> mResults;
 
     public ResultView(Context context) {
         super(context);
@@ -63,11 +60,12 @@ public class ResultView extends View {
             mPaintText.setStrokeWidth(0);
             mPaintText.setStyle(Paint.Style.FILL);
             mPaintText.setTextSize(32);
-            canvas.drawText(String.format("%s %.2f", PrePostProcessor.mClasses[result.classIndex], result.score), result.rect.left + TEXT_X, result.rect.top + TEXT_Y, mPaintText);
+//            canvas.drawText(String.format("%s %.2f", PrePostProcessor.mClasses[result.classIndex], result.score), result.rect.left + TEXT_X, result.rect.top + TEXT_Y, mPaintText);
+            canvas.drawText(String.format("%s %.2f", "label_placeholder", result.score), result.rect.left + TEXT_X, result.rect.top + TEXT_Y, mPaintText);
         }
     }
 
-    public void setResults(ArrayList<Result> results) {
+    public void setResults(ArrayList<PredResult> results) {
         mResults = results;
     }
 }
